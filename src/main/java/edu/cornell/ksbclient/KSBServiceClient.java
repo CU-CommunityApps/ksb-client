@@ -15,7 +15,7 @@ import org.apache.cxf.endpoint.Client;
 import org.apache.cxf.endpoint.Endpoint;
 import org.apache.cxf.frontend.ClientProxy;
 import org.apache.cxf.ws.security.wss4j.WSS4JOutInterceptor;
-import org.apache.ws.security.handler.WSHandlerConstants;
+import org.apache.wss4j.dom.handler.WSHandlerConstants;
 import org.kuali.rice.core.v2_0.ComponentService;
 import org.kuali.rice.core.v2_0.NamespaceService;
 import org.kuali.rice.core.v2_0.ParameterService;

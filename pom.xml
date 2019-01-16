@@ -3,7 +3,7 @@
   <groupId>edu.cornell.ksdbclient</groupId>
   <artifactId>ksb-client</artifactId>
   <packaging>jar</packaging>
-  <version>1.0.4-SNAPSHOT</version>
+  <version>1.0.5-SNAPSHOT</version>
   <name>ksb-client</name>
   
   <properties>
@@ -52,23 +52,23 @@
 	<dependency>
 	    <groupId>org.apache.cxf</groupId>
 	    <artifactId>cxf-bundle</artifactId>
-	    <version>2.7.10</version>
+	    <version>3.0.0-milestone2</version>
 	</dependency>
 	<dependency>
 	    <groupId>org.apache.cxf</groupId>
 	    <artifactId>cxf-rt-ws-security</artifactId>
-	    <version>2.7.10</version>
+	    <version>3.2.7</version>
 	</dependency>
 		<dependency>
 	    <groupId>org.apache.cxf</groupId>
 	    <artifactId>cxf-rt-transports-http-jetty</artifactId>
-	    <version>2.7.10</version>
+	    <version>3.2.7</version>
 	    <scope>test</scope> 
 	</dependency> 
 	<dependency>
 	    <groupId>junit</groupId>
 	    <artifactId>junit</artifactId>
-	    <version>4.11</version>
+	    <version>4.12</version>
 	    <scope>test</scope>
 	</dependency>
   </dependencies>
