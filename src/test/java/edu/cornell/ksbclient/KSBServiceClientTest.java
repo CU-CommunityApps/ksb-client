@@ -84,7 +84,7 @@ public class KSBServiceClientTest {
 	   assertEquals("US", svc.getDefaultCountry().getCode());
    }
    
-   @Test @Ignore
+   @Test
    public void postalServiceTest() throws Exception {
 	   KSBServiceClient client = new KSBServiceClient();  
 	   PostalCodeService svc = client.getPostalCodeService();
@@ -118,8 +118,8 @@ public class KSBServiceClientTest {
    public void groupServiceTest() throws Exception {
 	   KSBServiceClient client = new KSBServiceClient();  
 	   GroupService svc = client.getGroupService();
-	
-	   assertEquals("Kuali Administrators", svc.getGroup("2008").getName());
+	   
+	   assertEquals("KFS Organization Group", svc.getGroup("KFS10000").getName());
 	   
    }
    
