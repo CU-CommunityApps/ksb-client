@@ -31,6 +31,7 @@ public class KSBServiceClientTest {
 	
 	@Test
 	public void parameterServiceTest() throws Exception {
+	  assertTrue(false);
 	  KSBServiceClient client = new KSBServiceClient();
 		
     ParameterService svc = client.getParameterService();
