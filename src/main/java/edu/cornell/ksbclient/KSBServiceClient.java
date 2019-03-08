@@ -3,19 +3,24 @@ package edu.cornell.ksbclient;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.xml.namespace.QName;
+import javax.xml.ws.BindingProvider;
 
-import org.apache.cxf.endpoint.Client;
-import org.apache.cxf.endpoint.Endpoint;
-import org.apache.cxf.frontend.ClientProxy;
-import org.apache.cxf.ws.security.wss4j.WSS4JOutInterceptor;
-import org.apache.wss4j.dom.handler.WSHandlerConstants;
+import org.apache.axis2.AxisFault;
+import org.apache.axis2.client.ServiceClient;
+import org.apache.axis2.description.AxisService;
+import org.apache.axis2.jaxws.client.proxy.JAXWSProxyHandler;
+import org.apache.neethi.Policy;
+import org.apache.neethi.PolicyEngine;
+import org.apache.rampart.handler.WSSHandlerConstants;
 import org.kuali.rice.core.v2_0.ComponentService;
 import org.kuali.rice.core.v2_0.NamespaceService;
 import org.kuali.rice.core.v2_0.ParameterService;
@@ -27,8 +32,8 @@ import org.kuali.rice.kew.v2_0.DocumentAttributeIndexingQueue;
 import org.kuali.rice.kew.v2_0.DocumentOrchestrationQueue;
 import org.kuali.rice.kew.v2_0.DocumentProcessingQueue;
 import org.kuali.rice.kew.v2_0.DocumentRefreshQueue;
-import org.kuali.rice.kew.v2_0.NoteService;
 import org.kuali.rice.kew.v2_0.DocumentTypeService;
+import org.kuali.rice.kew.v2_0.NoteService;
 import org.kuali.rice.kew.v2_0.PeopleFlowService;
 import org.kuali.rice.kew.v2_0.PermissionTypeService;
 import org.kuali.rice.kew.v2_0.WorkflowDocumentActionsService;
@@ -44,27 +49,20 @@ import org.kuali.rice.location.v2_0.StateService;
 public class KSBServiceClient {
   
 	private static Properties properties = new Properties();
+	private static AtomicReference<String> signatureUser = new AtomicReference<>();
 	
-	private Map<String, Object> outProps = new HashMap<String, Object>();
 	private String baseURL = "";
 	private String signUser = "";
 	private String signPropsFile = "";
   
-	public KSBServiceClient(String signPropsFile, String signUser, String baseURL) {
-	  this.baseURL = baseURL;
-	  this.signUser = signUser;
-	  this.signPropsFile = signPropsFile;
-	  
-    outProps.put( WSHandlerConstants.ACTION, KSBClientProperties.SIGNATURE_ACTION );
-    outProps.put( WSHandlerConstants.USER, signUser );
-    outProps.put( WSHandlerConstants.PW_CALLBACK_CLASS, KSBClientCallbackHandler.class.getName() );
-    
-    if (KSBClientProperties.DEFAULT_SIGNATURE_PROPERTIES_FILE.equals(signPropsFile)) {
-      outProps.put( WSHandlerConstants.SIG_PROP_FILE,  signPropsFile);
-    } else {
-      loadCryptoProperties();
-    }  
-  }
+    public KSBServiceClient(String signPropsFile, String signUser, String baseURL) {
+        this.baseURL = baseURL;
+        this.signUser = signUser;
+        this.signPropsFile = signPropsFile;
+        
+        signatureUser.set(signUser);
+        loadCryptoProperties();
+    }
 
   public KSBServiceClient() {
     this(KSBClientProperties.DEFAULT_SIGNATURE_PROPERTIES_FILE, KSBClientProperties.DEFAULT_SIGNATURE_USER, KSBClientProperties.DEFAULT_BASE_URL);
@@ -194,10 +192,15 @@ public class KSBServiceClient {
   private <T> T getService(String wsdlocation, QName tService, QName tServicePort, Class<T> serviceEndpointInterface) {
 	  GenericServiceImpl svc;
 	  try {
-		  svc = new GenericServiceImpl(new URL(baseURL + wsdlocation), tService);
+		  //svc = new GenericServiceImpl(new URL(baseURL + wsdlocation), tService);
+		  //URL wsdlUrl = new URL(baseURL + wsdlocation);
+	      svc = new GenericServiceImpl(null, tService);
+		  //svc.addPort(tServicePort, SOAPBinding.SOAP11HTTP_BINDING, baseURL + wsdlocation.substring(0, wsdlocation.lastIndexOf("?wsdl")));
+		  //svc.createDispatch(tServicePort, SOAPMessage.class, Mode.PAYLOAD);
+		  //configureServiceToGeneratePortProxiesFromAnnotatedInterfacesOnly(svc);
 		  T service =  (T) svc.getPort(tServicePort, serviceEndpointInterface);
-		  
-		  setWSS4JOutInterceptor(service);
+		  String endpointUrl = getEndpointUrl(wsdlocation);
+		  enableWebSecurityAndSetEndpointOnService(service, tServicePort, endpointUrl);
 		  return service; 
 	  } catch (MalformedURLException e) {
 	      System.err.println("Invalid URL: " + baseURL);
@@ -206,8 +209,22 @@ public class KSBServiceClient {
 
   }
   
+  private String getEndpointUrl(String wsdlLocation) throws MalformedURLException {
+      String relativeEndpointLocation = wsdlLocation.substring(0, wsdlLocation.lastIndexOf("?wsdl"));
+      URL endpointUrl = new URL(baseURL + relativeEndpointLocation);
+      return endpointUrl.toString();
+  }
+  
   public static String getProperty(String key) {
     return properties.getProperty(key);
+  }
+  
+  public static Properties getProperties() {
+      return new Properties(properties);
+  }
+  
+  public static String getSignatureUser() {
+      return signatureUser.get();
   }
   
   public String getBaseURL() {
@@ -224,8 +241,7 @@ public class KSBServiceClient {
 
   public void setSignUser(String signUser) {
     this.signUser = signUser;
-    outProps.remove( WSHandlerConstants.USER);
-    outProps.put( WSHandlerConstants.USER, signUser );
+    signatureUser.set(signUser);
   }
 
   public String getSignPropsFile() {
@@ -234,9 +250,6 @@ public class KSBServiceClient {
 
   public void setSignPropsFile(String signPropsFile) {
     this.signPropsFile = signPropsFile;
-    
-    outProps.remove("crypto_properties");
-    outProps.remove(WSHandlerConstants.SIG_PROP_REF_ID);
     loadCryptoProperties();
   }
   
@@ -244,24 +257,57 @@ public class KSBServiceClient {
     //Since we are using a properties file that is out of the class path
     //we need to load it then stuff the ref into our WSS4J outbound
     //properties
-    try {
-      properties.load(new FileInputStream(signPropsFile));
+    try (InputStream propertiesStream = getInputStreamForCryptoPropertiesFile()) {
+      properties.load(propertiesStream);
     } catch (FileNotFoundException e) {
       System.err.println("Unable to find signature properties file: " + signPropsFile);
     } catch (IOException e) {
       System.err.println("Unable to read signature properties file: " + signPropsFile);
     } 
-    
-    outProps.put("crypto_properties",  properties);
-    outProps.put(WSHandlerConstants.SIG_PROP_REF_ID, "crypto_properties");
   }
 
-  private void setWSS4JOutInterceptor(Object service) {
-    Client client = ClientProxy.getClient( service );
-    Endpoint cxfEP = client.getEndpoint();
-    
-    WSS4JOutInterceptor wssOut = new WSS4JOutInterceptor( outProps );
-    
-    cxfEP.getOutInterceptors().add( wssOut );
-  }
+    private InputStream getInputStreamForCryptoPropertiesFile() throws IOException {
+        if (KSBClientProperties.DEFAULT_SIGNATURE_PROPERTIES_FILE.equals(signPropsFile)) {
+            return getClasspathResourceAsStream(signPropsFile);
+        } else {
+            return new FileInputStream(signPropsFile);
+        }
+    }
+
+    private void enableWebSecurityAndSetEndpointOnService(Object service, QName portQName, String endpointUrl) {
+        JAXWSProxyHandler proxyHandler = (JAXWSProxyHandler) Proxy.getInvocationHandler(service);
+        proxyHandler.getRequestContext().put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, endpointUrl);
+        
+        ServiceClient client = proxyHandler.getServiceDelegate().getServiceClient(portQName);
+        enableWebSecurityOnClient(client);
+        
+        AxisService axisService = client.getAxisService();
+        Policy signaturePolicy = getSignaturePolicyFromXml();
+        axisService.getPolicySubject().attachPolicy(signaturePolicy);
+    }
+
+    private void enableWebSecurityOnClient(ServiceClient client) {
+        try {
+            client.engageModule(WSSHandlerConstants.SECURITY_MODULE_NAME);
+        } catch (AxisFault e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Policy getSignaturePolicyFromXml() {
+        try (InputStream policyFileStream = getClasspathResourceAsStream(KSBClientProperties.DEFAULT_POLICY_FILE)) {
+            return PolicyEngine.getPolicy(policyFileStream);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private InputStream getClasspathResourceAsStream(String resourceName) throws IOException {
+        InputStream resourceStream = ClassLoader.getSystemClassLoader().getResourceAsStream(resourceName);
+        if (resourceStream == null) {
+            throw new IOException("Could not find classpath resource: " + resourceName);
+        }
+        return resourceStream;
+    }
+
 }

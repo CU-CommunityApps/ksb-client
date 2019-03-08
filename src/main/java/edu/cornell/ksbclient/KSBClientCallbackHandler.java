@@ -1,11 +1,13 @@
 package edu.cornell.ksbclient;
 
 import java.io.IOException;
+
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.UnsupportedCallbackException;
 
-import org.apache.wss4j.common.ext.WSPasswordCallback;
+import org.apache.ws.security.WSPasswordCallback;
+import org.apache.ws.security.components.crypto.Merlin;
 
 public class KSBClientCallbackHandler implements CallbackHandler {
 
@@ -14,18 +16,11 @@ public class KSBClientCallbackHandler implements CallbackHandler {
 		  
 		  //Let's make sure this is the signature callback
 			WSPasswordCallback pwcb = (WSPasswordCallback)thisCallback;
-			String user = pwcb.getIdentifier();
 			int usage = pwcb.getUsage();
 			
 			//got call back, have to set key store password
 			if( usage == WSPasswordCallback.SIGNATURE ) {
-			  
-			  if( KSBClientProperties.DEFAULT_SIGNATURE_USER.equals( user ) ) {
-			    pwcb.setPassword( "r1c3pw" );
-			  } else {
-			      //Grab key store pass from the crypto properties
-		       pwcb.setPassword(KSBServiceClient.getProperty(KSBClientProperties.KEY_STORE_PASSWORD));
-			  }
+		       pwcb.setPassword(KSBServiceClient.getProperty(Merlin.KEYSTORE_PASSWORD));
 			}
 		}		
 	}
