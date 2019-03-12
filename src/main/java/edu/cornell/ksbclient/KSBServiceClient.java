@@ -17,6 +17,8 @@ import javax.xml.ws.BindingProvider;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.client.ServiceClient;
 import org.apache.axis2.description.AxisService;
+import org.apache.axis2.engine.AxisConfiguration;
+import org.apache.axis2.engine.Phase;
 import org.apache.axis2.jaxws.client.proxy.JAXWSProxyHandler;
 import org.apache.neethi.Policy;
 import org.apache.neethi.PolicyEngine;
@@ -189,17 +191,12 @@ public class KSBServiceClient {
           KSBClientProperties.QNAME_PEOPLE_FLOW_SERVICE_PORT, PeopleFlowService.class);
   }
   
-  private <T> T getService(String wsdlocation, QName tService, QName tServicePort, Class<T> serviceEndpointInterface) {
+  private <T> T getService(String wsdlLocation, QName tService, QName tServicePort, Class<T> serviceEndpointInterface) {
 	  GenericServiceImpl svc;
 	  try {
-		  //svc = new GenericServiceImpl(new URL(baseURL + wsdlocation), tService);
-		  //URL wsdlUrl = new URL(baseURL + wsdlocation);
-	      svc = new GenericServiceImpl(null, tService);
-		  //svc.addPort(tServicePort, SOAPBinding.SOAP11HTTP_BINDING, baseURL + wsdlocation.substring(0, wsdlocation.lastIndexOf("?wsdl")));
-		  //svc.createDispatch(tServicePort, SOAPMessage.class, Mode.PAYLOAD);
-		  //configureServiceToGeneratePortProxiesFromAnnotatedInterfacesOnly(svc);
+	      svc = new GenericServiceImpl(tService);
 		  T service =  (T) svc.getPort(tServicePort, serviceEndpointInterface);
-		  String endpointUrl = getEndpointUrl(wsdlocation);
+		  String endpointUrl = getEndpointUrl(wsdlLocation);
 		  enableWebSecurityAndSetEndpointOnService(service, tServicePort, endpointUrl);
 		  return service; 
 	  } catch (MalformedURLException e) {
@@ -210,7 +207,7 @@ public class KSBServiceClient {
   }
   
   private String getEndpointUrl(String wsdlLocation) throws MalformedURLException {
-      String relativeEndpointLocation = wsdlLocation.substring(0, wsdlLocation.lastIndexOf("?wsdl"));
+      String relativeEndpointLocation = wsdlLocation.substring(0, wsdlLocation.lastIndexOf(KSBClientProperties.WSDL_URL_SUFFIX));
       URL endpointUrl = new URL(baseURL + relativeEndpointLocation);
       return endpointUrl.toString();
   }
@@ -254,9 +251,6 @@ public class KSBServiceClient {
   }
   
   private void loadCryptoProperties() {
-    //Since we are using a properties file that is out of the class path
-    //we need to load it then stuff the ref into our WSS4J outbound
-    //properties
     try (InputStream propertiesStream = getInputStreamForCryptoPropertiesFile()) {
       properties.load(propertiesStream);
     } catch (FileNotFoundException e) {
@@ -284,6 +278,8 @@ public class KSBServiceClient {
         AxisService axisService = client.getAxisService();
         Policy signaturePolicy = getSignaturePolicyFromXml();
         axisService.getPolicySubject().attachPolicy(signaturePolicy);
+        
+        addHandlerForFixingNamespacePrefixesOnXmlOutput(client);
     }
 
     private void enableWebSecurityOnClient(ServiceClient client) {
@@ -303,11 +299,25 @@ public class KSBServiceClient {
     }
 
     private InputStream getClasspathResourceAsStream(String resourceName) throws IOException {
-        InputStream resourceStream = ClassLoader.getSystemClassLoader().getResourceAsStream(resourceName);
+        ClassLoader classLoader = KSBServiceClient.class.getClassLoader();
+        if (classLoader == null) {
+            classLoader = ClassLoader.getSystemClassLoader();
+        }
+        InputStream resourceStream = classLoader.getResourceAsStream(resourceName);
         if (resourceStream == null) {
             throw new IOException("Could not find classpath resource: " + resourceName);
         }
         return resourceStream;
+    }
+
+    private void addHandlerForFixingNamespacePrefixesOnXmlOutput(ServiceClient client) {
+        AxisConfiguration axisConfig = client.getAxisConfiguration();
+        Phase messageOutPhase = axisConfig.getOutFlowPhases().stream()
+                .filter(phase -> KSBClientProperties.MESSAGE_OUT_PHASE.equals(phase.getName()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Could not find phase " + KSBClientProperties.MESSAGE_OUT_PHASE));
+        
+        messageOutPhase.addHandler(new NamespacePrefixHandler());
     }
 
 }
