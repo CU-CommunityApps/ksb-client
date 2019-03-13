@@ -9,8 +9,11 @@ public class KSBClientProperties {
   public static final String DEFAULT_BASE_URL = "https://monsters-stg.kuali.co/rice";
   
   public static final String SIGNATURE_ACTION = "Signature";
+  public static final String MESSAGE_OUT_PHASE = "MessageOut";
+  public static final String WSDL_URL_SUFFIX = "?wsdl";
   
-  public static final String KEY_STORE_PASSWORD = "org.apache.ws.security.crypto.merlin.keystore.password";
+  public static final String DEFAULT_POLICY_FILE = "ksb-policy.xml";
+  public static final String CRYPTO_PROVIDER = "org.apache.ws.security.crypto.provider";
   
   public static final String ROLE_WSDL_LOCATION = "/remoting/soap/kim/v2_0/roleService?wsdl";
   public static final QName QNAME_ROLE_SERVICE = new QName("http://rice.kuali.org/kim/v2_0", "roleService");

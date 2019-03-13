@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsp:Policy xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy">
+    <wsp:ExactlyOne>
+        <wsp:All>
+            <sp:AsymmetricBinding xmlns:sp="http://schemas.xmlsoap.org/ws/2005/07/securitypolicy">
+                <wsp:Policy>
+                    <sp:InitiatorToken>
+                        <wsp:Policy>
+                            <sp:X509Token sp:IncludeToken="http://schemas.xmlsoap.org/ws/2005/07/securitypolicy/IncludeToken/Never">
+                                <wsp:Policy>
+                                    <sp:WssX509V3Token10/>
+                                    <sp:RequireIssuerSerialReference/>
+                                </wsp:Policy>
+                            </sp:X509Token>
+                        </wsp:Policy>
+                    </sp:InitiatorToken>
+                    <sp:RecipientToken>
+                        <wsp:Policy>
+                            <sp:X509Token sp:IncludeToken="http://schemas.xmlsoap.org/ws/2005/07/securitypolicy/IncludeToken/Never">
+                                <wsp:Policy>
+                                    <sp:WssX509V3Token10/>
+                                    <sp:RequireIssuerSerialReference/>
+                                </wsp:Policy>
+                            </sp:X509Token>
+                        </wsp:Policy>
+                    </sp:RecipientToken>
+                    <sp:AlgorithmSuite>
+                        <wsp:Policy>
+                            <sp:Basic256/>
+                        </wsp:Policy>
+                    </sp:AlgorithmSuite>
+                    <sp:Layout>
+                        <wsp:Policy>
+                            <sp:Strict/>
+                        </wsp:Policy>
+                    </sp:Layout>
+                    <sp:OnlySignEntireHeadersAndBody/>
+                </wsp:Policy>
+            </sp:AsymmetricBinding>
+            <sp:SignedParts xmlns:sp="http://schemas.xmlsoap.org/ws/2005/07/securitypolicy">
+                <sp:Body/>
+            </sp:SignedParts>
+            <ramp:RampartConfig xmlns:ramp="http://ws.apache.org/rampart/policy">
+                <ramp:rampartConfigCallbackClass>edu.cornell.ksbclient.KSBClientSecurityCallbackHandler</ramp:rampartConfigCallbackClass>
+            </ramp:RampartConfig>
+        </wsp:All>
+    </wsp:ExactlyOne>
+</wsp:Policy>
